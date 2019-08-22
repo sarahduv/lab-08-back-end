@@ -135,10 +135,10 @@ function getWeather(request, response){
         //Logging data into the SQL DB
         formattedDays.forEach(day => {
           const sqlQueryInsert = `INSERT INTO weather 
-          (forecast, time)
+          (search_query, forecast, time)
           VALUES
-          ($1, $2);`;
-          const valuesArray = [day.forecast, day.time]
+          ($1, $2, $3);`;
+          const valuesArray = [query.search_query, day.forecast, day.time]
   
           //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
           client.query(sqlQueryInsert, valuesArray);
@@ -153,15 +153,42 @@ function getWeather(request, response){
 }
 
 function getEvents(request, response) {
-  const urlToVisit = `https://www.eventbriteapi.com/v3/events/search?location.longitude=${request.query.data.longitude}&location.latitude=${request.query.data.latitude}&token=${EVENTS_API_KEY}`;
+  const query = request.query.data;
 
-  superagent.get(urlToVisit).then(responseFromSuper => {
+  client.query(`SELECT * FROM events WHERE search_query=$1`, [query]).then(sqlResult => {
+    //debugging, and logging result
+    // console.log('sql results', sqlResult);
 
-    const eventData = responseFromSuper.body;
+    if(sqlResult.rowCount > 0){
 
-    const formattedEvent = eventData.events.map(event => new Eventbrite(event.url, event.name.text, event.start.local, event.summary));
+      console.log('I found stuff in the DB! :D')
+      response.send(sqlResult.rows[0]);
 
-    response.send(formattedEvent);
+    } else {
+
+      const urlToVisit = `https://www.eventbriteapi.com/v3/events/search?location.longitude=${request.query.data.longitude}&location.latitude=${request.query.data.latitude}&token=${EVENTS_API_KEY}`;
+
+      superagent.get(urlToVisit).then(responseFromSuper => {
+
+        const eventData = responseFromSuper.body;
+
+        const formattedEvent = eventData.events.map(event => new Eventbrite(event.url, event.name.text, event.start.local, event.summary));
+
+        response.send(formattedEvent);
+
+        //Logging data into the SQL DB
+        formattedEvent.forEach(event => {
+          const sqlQueryInsert = `INSERT INTO events 
+          (search_query, link, name, event_date, summary)
+          VALUES
+          ($1, $2, $3, $4, $5);`;
+          const valuesArray = [query.search_query, event.link, event.name, event.event_date, event.summary];
+  
+          //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+          client.query(sqlQueryInsert, valuesArray);
+        })
+      })
+    }
 
   }).catch(error => {
     response.status(500).send(error.message);

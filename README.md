@@ -36,5 +36,5 @@ Actual time needed to complete: 2 hours
 Number and name of feature: events
 Estimate of time needed to complete: infinity
 Start time: 1:00
-Finish time: 
-Actual time needed to complete: 
+Finish time: 1:30
+Actual time needed to complete: 30
