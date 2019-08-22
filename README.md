@@ -30,5 +30,11 @@ Actual time needed to complete: 25
 Number and name of feature: SQL hook up to location
 Estimate of time needed to complete: 45 minutes
 Start time: 9:45
-Finish time: 9:
-Actual time needed to complete:
+Finish time: 11:55
+Actual time needed to complete: 2 hours
+
+Number and name of feature: events
+Estimate of time needed to complete: infinity
+Start time: 1:00
+Finish time: 
+Actual time needed to complete: 

@@ -40,48 +40,112 @@ function Eventbrite(url, name, date, summary){
   this.summary = summary;
 }
 
+// function lookUp(queryIn){
+//   client.query(`SELECT * FROM locations WHERE search_query=$1`, [queryIn]).then(sqlResult => {
+//     if(sqlResult.rowCount > 0){
+//       return true;
+//     } else {
+//       return false;
+//     }
+//   })
+// }
+
 app.get('/location', (request, response) => {
+
   const query = request.query.data;
+  
+  // console.log(`look up test ${query} result ${lookUp(query)}`);
 
-  const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${GEOCODE_API_KEY}`
-  console.log(urlToVisit);
-  // superagent.get('url as a string');
-  superagent.get(urlToVisit).then(responseFromSuper => {
-    // console.log('stuff for location', responseFromSuper.body);
+  client.query(`SELECT * FROM locations WHERE search_query=$1`, [query]).then(sqlResult => {
+    //debugging, and logging result
+    // console.log('sql results', sqlResult);
 
-    // I simply replaced my geodata require, with the data in the body of my superagent response
-    const geoData = responseFromSuper.body;
+    if(sqlResult.rowCount > 0){
 
-    const specificGeoData = geoData.results[0];
+      console.log('I found stuff in the DB! :D')
+      response.send(sqlResult.rows[0]);
 
-    const formatted = specificGeoData.formatted_address;
-    const lat = specificGeoData.geometry.location.lat;
-    const lng = specificGeoData.geometry.location.lng;
+    } else {
 
-    latTemp = lat;
-    longTemp = lng;
+      const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${GEOCODE_API_KEY}`
+      // superagent.get('url as a string');
+      superagent.get(urlToVisit).then(responseFromSuper => {
+        // console.log('stuff for location', responseFromSuper.body);
+    
+        // I simply replaced my geodata require, with the data in the body of my superagent response
+        const geoData = responseFromSuper.body;
+    
+        const specificGeoData = geoData.results[0];
+    
+        const formatted = specificGeoData.formatted_address;
+        const lat = specificGeoData.geometry.location.lat;
+        const lng = specificGeoData.geometry.location.lng;
+    
+        latTemp = lat;
+        longTemp = lng;
+    
+        const newLocation = new Location(query, formatted, lat, lng)
 
-    const newLocation = new Location(query, formatted, lat, lng)
-    console.log(newLocation);
-    response.send(newLocation);
-  }).catch(error => {
-    response.status(500).send(error.message);
-    console.error(error);
+        //Logging data into the SQL DB
+        const sqlQueryInsert = `INSERT INTO locations 
+        (search_query, formatted_query, latitude, longitude)
+        VALUES
+        ($1, $2, $3, $4);`;
+        const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
+
+        //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+        client.query(sqlQueryInsert, valuesArray);
+
+        response.send(newLocation);
+      }).catch(error => {
+        response.status(500).send(error.message);
+        console.error(error);
+      })
+    }
   })
 })
 
 
 function getWeather(request, response){
-  const urlToVisit = `https://api.darksky.net/forecast/${WEATHER_API_KEY}/${latTemp},${longTemp}`
 
-  superagent.get(urlToVisit).then(responseFromSuper => {
+  const query = request.query.data;
 
-    const weatherData = responseFromSuper.body;
-    const eightDays = weatherData.daily.data;
+  client.query(`SELECT * FROM weather WHERE search_query=$1`, [query]).then(sqlResult => {
+    //debugging, and logging result
+    // console.log('sql results', sqlResult);
 
-    const formattedDays = eightDays.map(day => new Day(day.summary, day.time));
+    if(sqlResult.rowCount > 0){
 
-    response.send(formattedDays);
+      console.log('I found stuff in the DB! :D')
+      response.send(sqlResult.rows[0]);
+
+    } else {
+
+      const urlToVisit = `https://api.darksky.net/forecast/${WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`
+
+      superagent.get(urlToVisit).then(responseFromSuper => {
+
+        const weatherData = responseFromSuper.body;
+        const eightDays = weatherData.daily.data;
+
+        const formattedDays = eightDays.map(day => new Day(day.summary, day.time));
+
+        response.send(formattedDays);
+
+        //Logging data into the SQL DB
+        formattedDays.forEach(day => {
+          const sqlQueryInsert = `INSERT INTO weather 
+          (forecast, time)
+          VALUES
+          ($1, $2);`;
+          const valuesArray = [day.forecast, day.time]
+  
+          //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+          client.query(sqlQueryInsert, valuesArray);
+          
+        })
+      })
+    }
   }).catch(error => {
     response.status(500).send(error.message);
     console.error(error);
@@ -89,7 +153,7 @@ function getWeather(request, response){
 }
 
 function getEvents(request, response) {
-  const urlToVisit = `https://www.eventbriteapi.com/v3/events/search?location.longitude=${longTemp}&location.latitude=${latTemp}&token=${EVENTS_API_KEY}`;
+  const urlToVisit = `https://www.eventbriteapi.com/v3/events/search?location.longitude=${request.query.data.longitude}&location.latitude=${request.query.data.latitude}&token=${EVENTS_API_KEY}`;
 
   superagent.get(urlToVisit).then(responseFromSuper => {
 
