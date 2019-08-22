@@ -1,6 +1,6 @@
 # lab-07
 
-### Authors: James Dansie & Adrian HUUUBBNEEErr
+### Authors: James Dansie & Adrian HUUUBBNEEErr & Sarah Gilliam
 
 **Version**: 1.0.0 (increment the patch/fix version number if you make more commits past your first submission)
 
