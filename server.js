@@ -6,9 +6,13 @@ const cors = require('cors');
 const superagent = require('superagent');
 require('dotenv').config()
 const app = express();
+const pg = require('pg');
 app.use(cors());
 
 const PORT = process.env.PORT;
+const client = new pg.Client(process.env.DATABASE_URL);
+client.connect();
+client.on('error', (error) => console.log(error));
 
 const GEOCODE_API_KEY = process.env.googleMapsAPI;
 const WEATHER_API_KEY = process.env.darkSkyAPI;
