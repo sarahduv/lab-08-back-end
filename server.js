@@ -17,6 +17,10 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 app.use(cors());
 
+const MS_IN_SEC = 1000;
+const SEC_IN_HOUR = 3600;
+const SEC_IN_DAY = 3600 * 24; 
+
 // Connect to database
 const client = new pg.Client(DATABASE_URL);
 client.connect();
@@ -31,7 +35,7 @@ function Location(query, format, lat, lng){
 
 function Day(summary, time){
   this.forecast = summary;
-  this.time = new Date(time *1000).toDateString();
+  this.time = new Date(time * MS_IN_SEC).toDateString();
 }
 
 function Eventbrite(url, name, date, summary){
@@ -58,8 +62,8 @@ function updateLocation(query, request, response) {
     //Logging data into the SQL DB
     const sqlQueryInsert = `
       INSERT INTO locations (search_query, formatted_query, latitude, longitude, created_at)
-      VALUES ($1, $2, $3, $4, now());`;
-    const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
+      VALUES ($1, $2, $3, $4, $5);`;
+    const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude, now()];
 
     //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
     client.query(sqlQueryInsert, valuesArray);
@@ -82,8 +86,8 @@ function updateWeather(query, request, response){
     formattedDays.forEach(day => {
       const sqlQueryInsert = `
         INSERT INTO weather (search_query, forecast, time, created_at)
-        VALUES ($1, $2, $3, now());`;
-      const valuesArray = [query.search_query, day.forecast, day.time]
+        VALUES ($1, $2, $3, $4);`;
+      const valuesArray = [query.search_query, day.forecast, day.time, now()]
 
       //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
       client.query(sqlQueryInsert, valuesArray);
@@ -105,8 +109,8 @@ function updateEvents(query, request, response){
     formattedEvent.forEach(event => {
       const sqlQueryInsert = `
         INSERT INTO events (search_query, link, name, event_date, summary, created_at)
-        VALUES ($1, $2, $3, $4, $5, now());`;
-      const valuesArray = [query.search_query, event.link, event.name, event.event_date, event.summary];
+        VALUES ($1, $2, $3, $4, $5, $6);`;
+      const valuesArray = [query.search_query, event.link, event.name, event.event_date, event.summary, now()];
 
       //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
       client.query(sqlQueryInsert, valuesArray);
@@ -132,7 +136,13 @@ function getWeather(request, response){
   const query = request.query.data;
   client.query(`SELECT * FROM weather WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
     if(sqlResult.rowCount > 0){
-      response.send(sqlResult.rows);
+      if (isOlderThan(sqlResult.rows, 15)) {
+        console.log('Refreshing old weather data');
+        deleteRows(sqlResult.rows, 'weather');
+        updateWeather(query, request, response);
+      } else {
+        response.send(sqlResult.rows);
+      }
     } else {
       updateWeather(query, request, response);
     }
@@ -143,11 +153,39 @@ function getEvents(request, response) {
   const query = request.query.data;
   client.query(`SELECT * FROM events WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
     if(sqlResult.rowCount > 0){
-      response.send(sqlResult.rows);
+      if (isOlderThan(sqlResult.rows, SEC_IN_DAY)) {
+        deleteRows(sqlResult.rows, 'events');
+        updateEvents(query, request, response);
+      } else {
+        response.send(sqlResult.rows);
+      }
     } else {
       updateEvents(query, request, response);
     }
   });
+}
+
+function now() {
+  // seconds now
+  return Math.floor((new Date()).valueOf() / MS_IN_SEC);
+}
+
+function deleteRows(rows, table) {
+  const deleteQuery = `
+    DELETE FROM ${table}
+    WHERE id IN (${rows.map(row => row.id).join(',')});`;
+  client.query(deleteQuery, []);
+}
+
+function isOlderThan(rows, seconds){
+  for(let i = 0; i<rows.length; i++){
+    if(parseInt(rows[i].created_at) + seconds < now()) {
+      // at least one of the rows is older than
+      return true;
+    }
+  }
+  // none of the rows is older than
+  return false;
 }
 
 app.get('/location', getLocation);

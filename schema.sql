@@ -9,7 +9,7 @@ CREATE TABLE locations (
   formatted_query VARCHAR(255),
   latitude NUMERIC(10,7),
   longitude NUMERIC (10,7),
-  created_at TIMESTAMP
+  created_at NUMERIC
 );
 
 DROP TABLE IF EXISTS weather;
@@ -19,7 +19,7 @@ CREATE TABLE weather (
   search_query VARCHAR(255),
   forecast VARCHAR,
   time VARCHAR(255),
-  created_at TIMESTAMP
+  created_at NUMERIC
 );
 
 DROP TABLE IF EXISTS events;
@@ -31,6 +31,6 @@ CREATE TABLE events (
   name VARCHAR(255),
   event_date VARCHAR(255),
   summary VARCHAR,
-  created_at TIMESTAMP
+  created_at NUMERIC
 );
 -- Entirely to test if things worked
