@@ -57,8 +57,8 @@ function updateLocation(query, request, response) {
 
     //Logging data into the SQL DB
     const sqlQueryInsert = `
-      INSERT INTO locations (search_query, formatted_query, latitude, longitude)
-      VALUES ($1, $2, $3, $4);`;
+      INSERT INTO locations (search_query, formatted_query, latitude, longitude, created_at)
+      VALUES ($1, $2, $3, $4, now());`;
     const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
 
     //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
@@ -81,8 +81,8 @@ function updateWeather(query, request, response){
     //Logging data into the SQL DB
     formattedDays.forEach(day => {
       const sqlQueryInsert = `
-        INSERT INTO weather (search_query, forecast, time)
-        VALUES ($1, $2, $3);`;
+        INSERT INTO weather (search_query, forecast, time, created_at)
+        VALUES ($1, $2, $3, now());`;
       const valuesArray = [query.search_query, day.forecast, day.time]
 
       //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
@@ -104,8 +104,8 @@ function updateEvents(query, request, response){
     //Logging data into the SQL DB
     formattedEvent.forEach(event => {
       const sqlQueryInsert = `
-        INSERT INTO events (search_query, link, name, event_date, summary)
-        VALUES ($1, $2, $3, $4, $5);`;
+        INSERT INTO events (search_query, link, name, event_date, summary, created_at)
+        VALUES ($1, $2, $3, $4, $5, now());`;
       const valuesArray = [query.search_query, event.link, event.name, event.event_date, event.summary];
 
       //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
@@ -121,7 +121,6 @@ function getLocation(request, response) {
   const query = request.query.data;
   client.query(`SELECT * FROM locations WHERE search_query=$1`, [query]).then(sqlResult => {
     if(sqlResult.rowCount > 0){
-      console.log('I found stuff in the DB! :D')
       response.send(sqlResult.rows[0]);
     } else {
       updateLocation(query, request, response);
@@ -129,13 +128,11 @@ function getLocation(request, response) {
   });
 }
 
-
 function getWeather(request, response){
   const query = request.query.data;
-  client.query(`SELECT * FROM weather WHERE search_query=$1`, [query]).then(sqlResult => {
+  client.query(`SELECT * FROM weather WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
     if(sqlResult.rowCount > 0){
-      console.log('I found stuff in the DB! :D')
-      response.send(sqlResult.rows[0]);
+      response.send(sqlResult.rows);
     } else {
       updateWeather(query, request, response);
     }
@@ -144,10 +141,9 @@ function getWeather(request, response){
 
 function getEvents(request, response) {
   const query = request.query.data;
-  client.query(`SELECT * FROM events WHERE search_query=$1`, [query]).then(sqlResult => {
+  client.query(`SELECT * FROM events WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
     if(sqlResult.rowCount > 0){
-      console.log('I found stuff in the DB! :D')
-      response.send(sqlResult.rows[0]);
+      response.send(sqlResult.rows);
     } else {
       updateEvents(query, request, response);
     }
