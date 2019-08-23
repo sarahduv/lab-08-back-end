@@ -12,6 +12,8 @@ const pg = require('pg');
 const GEOCODE_API_KEY = process.env.googleMapsAPI;
 const WEATHER_API_KEY = process.env.darkSkyAPI;
 const EVENTS_API_KEY = process.env.eventBriteAPI;
+const MOVIE_API_KEY = process.env.movieAPI;
+const YELP_API_KEY = process.env.yelpAPI;
 const PORT = process.env.PORT;
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -19,7 +21,7 @@ app.use(cors());
 
 const MS_IN_SEC = 1000;
 const SEC_IN_HOUR = 3600;
-const SEC_IN_DAY = 3600 * 24; 
+const SEC_IN_DAY = 3600 * 24;
 
 // Connect to database
 const client = new pg.Client(DATABASE_URL);
